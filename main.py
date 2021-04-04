@@ -7,7 +7,7 @@ from selenium.common.exceptions import TimeoutException
 import time
 from datetime import datetime
 import sqlite3
-from tkinter import *
+import schedule
 
 def formatAndInsertList(day, listString):
     temp = ""
@@ -16,6 +16,13 @@ def formatAndInsertList(day, listString):
 
     cursor.execute("INSERT INTO timetable VALUES('" + day + "'" + temp + ")")
 
+
+def getClassLinks(subject):
+    dictionary = {
+        "Biology": "/html/body/div[1]/div[2]/div[1]/div/left-rail/div/div/school-app-left-rail/channel-list/div/div[1]/ul/li/ul/li[2]/div/div/ul/ng-include/li[2]/a",
+        "Chemistry": "/html/body/div[1]/div[2]/div[1]/div/left-rail/div/div/school-app-left-rail/channel-list/div/div[1]/ul/li/ul/li[2]/div/div/ul/ng-include/li[3]/a",
+    }
+    return dictionary[subject]
 
 def makeTable():
     print("The Format for entering data: english, maths, sst, german, sanskrit, hindi   Enter 5 subjects only ")
@@ -33,31 +40,23 @@ def makeTable():
     formatAndInsertList("thursday" , subjectListThursday)
     formatAndInsertList("friday" , subjectListFriday)
 
+    dbconnection.commit()
+
 
     print(cursor.execute("Select * FROM timetable").fetchall())
 
-
-dbconnection = sqlite3.connect("timetable.db")
-cursor = dbconnection.cursor()
-#cursor.execute("CREATE TABLE timetable (Day TEXT , Period1 TEXT, Period2 TEXT, Period3 TEXT, Period4 TEXT, Period5 TEXT)")
-
-changeTimetable = input("Change Timetable? (y/n): ")
-if(changeTimetable == "n"):
-    pass
-if(changeTimetable == "y"):
-    makeTable()
-
-browser = webdriver.Chrome("chromedriver")
-print("Loading Driver complete")
-dateToday = datetime.now().month
-
+Period1 = ["9:00", "9:40"]
+Period2 = ["10:00", "10:40"]
+Period3 = ["11:00", "11:40"]
+Period4 = ["12:00", "12:40"]
+Period5 = ["13:00", "13:40"]
 
 def waitForPageLoad(delay, xpath):
     try:
         myElem = WebDriverWait(browser, delay).until(EC.presence_of_element_located((By.XPATH, xpath)))
         return myElem
     except TimeoutException:
-        print("Loading took too much time!")
+        print("Loading took too much time! " + delay + " failed")
 
 def waitForPageLoadClass(delay, className):
     try:
@@ -73,34 +72,100 @@ def loadCredentials():
     username = file.readline()
     password = file.readline()
 
+
+def convertTuple(tup):
+    str =  ''.join(tup)
+    return str
+
 def login():
     loadCredentials()
+
+    browser.get("https://login.microsoftonline.com/common/oauth2/authorize?response_type=id_token&client_id=5e3ce6c0-2b1f-4285-8d4b-75ee78787346&redirect_uri=https%3A%2F%2Fteams.microsoft.com%2Fgo&state=53de18a4-9691-4258-805e-3b3f5713f709&&client-request-id=ecbbd706-d1c8-4f09-a43f-2284b0eed3b2&x-client-SKU=Js&x-client-Ver=1.0.9&nonce=1b098a89-c7e2-41ef-a7b3-b378e186caad&domain_hint=")
+    time.sleep(2)
 
     username_entry = browser.find_element_by_xpath("/html/body/div/form[1]/div/div/div[2]/div/div/div[1]/div[2]/div[2]/div/div/div/div[2]/div[2]/div/input[1]")
     username_entry.send_keys(username)
 
-    time.sleep(2)
-
-    password_entry = browser.find_element_by_xpath("/html/body/div/form[1]/div/div/div[2]/div/div/div[1]/div[2]/div[2]/div/div[2]/div/div[2]/div/div[2]/input")
+    password_entry = waitForPageLoad(3, "/html/body/div/form[1]/div/div/div[2]/div/div/div[1]/div[2]/div[2]/div/div[2]/div/div[2]/div/div[2]/input")
     password_entry.send_keys(password)
 
-    time.sleep(2)
-
-    stay_signed_in_button = browser.find_element_by_xpath('/html/body/div/form/div/div/div[1]/div[2]/div/div[2]/div/div[3]/div[2]/div/div/div[1]/input')
+    stay_signed_in_button = waitForPageLoad(3, '/html/body/div/form/div/div/div[1]/div[2]/div/div[2]/div/div[3]/div[2]/div/div/div[1]/input')
     stay_signed_in_button.click()
 
+def joinClass(className):
 
-browser.get("https://login.microsoftonline.com/common/oauth2/authorize?response_type=id_token&client_id=5e3ce6c0-2b1f-4285-8d4b-75ee78787346&redirect_uri=https%3A%2F%2Fteams.microsoft.com%2Fgo&state=53de18a4-9691-4258-805e-3b3f5713f709&&client-request-id=ecbbd706-d1c8-4f09-a43f-2284b0eed3b2&x-client-SKU=Js&x-client-Ver=1.0.9&nonce=1b098a89-c7e2-41ef-a7b3-b378e186caad&domain_hint=")
+    classes_available = waitForPageLoadClass(100, "name-channel-type")
+    classes_available = browser.find_elements_by_class_name("name-channel-type")
 
-time.sleep(2)
-login()
+    for i in classes_available:
+        if(convertTuple(className).lower() in str(i.get_attribute('innerHTML')).lower()):
+            i.click()
 
-channelList = waitForPageLoad(300, "/html/body/div[1]/div[2]/div[1]/div/left-rail/div/div/school-app-left-rail/channel-list/div/div[1]/ul/li/ul/li[4]/div/div/ul")
-channelLists = channelList.find_elements_by_tag_name('li')
-print(channelLists)
+    time.sleep(5)
+    try:
+		joinbtn = driver.find_element_by_class_name("ts-calling-join-button")
+		joinbtn.click()
+	except:
+		k = 1
+		while(k<=15):
+			print("Join button not found, trying again")
+			time.sleep(60)
+			driver.refresh()
+			joinclass(class_name,start_time,end_time)
+			k+=1
+		print("Seems like there is no class today.")
 
-classes_available = waitForPageLoadClass(30, "name-channel-type")
-classes_available = browser.find_elements_by_class_name("name-channel-type")
+def startBrowser():
+    global browser
+    browser = webdriver.Chrome("chromedriver")
+    print("Loading Driver complete")
+    login()
 
-for i in classes_available:
-    print(i.get_attribute('innerHTML'))
+
+dbconnection = sqlite3.connect("timetable.db")
+cursor = dbconnection.cursor()
+todaysDay = datetime.today().strftime("%A").lower()
+todaysDay = "friday"
+
+#cursor.execute("CREATE TABLE timetable (Day TEXT , Period1 TEXT, Period2 TEXT, Period3 TEXT, Period4 TEXT, Period5 TEXT)")
+
+changeTimetable = input("Change Timetable? (y/n): ")
+if(changeTimetable == "n"):
+    pass
+if(changeTimetable == "y"):
+    makeTable()
+
+timetable_row = cursor.execute('SELECT * FROM timetable WHERE Day = ?', (todaysDay, )).fetchall()[0]
+for i in range(len(timetable_row)):
+    currentPeriod = i + 1
+    start_time = "null"
+
+    if(currentPeriod == 1):
+        start_time = Period1[0]
+    elif(currentPeriod == 2):
+        start_time = Period2[0]
+    elif(currentPeriod == 3):
+        start_time = Period3[0]
+    elif(currentPeriod == 4):
+        start_time = Period4[0]
+    elif(currentPeriod == 5):
+        start_time = Period5[0]
+
+    print(start_time)
+    if(start_time != "null"):
+        if(todaysDay == "monday"):
+            schedule.every().monday.at(start_time).do(joinClass, timetable_row[currentPeriod])
+        elif(todaysDay == "tuesday"):
+            schedule.every().tuesday.at(start_time).do(joinClass, timetable_row[currentPeriod])
+        elif(todaysDay == "wednesday"):
+            schedule.every().wednesday.at(start_time).do(joinClass, timetable_row[currentPeriod])
+        elif(todaysDay == "thursday"):
+            schedule.every().thursday.at(start_time).do(joinClass, timetable_row[currentPeriod])
+        elif(todaysDay == "friday"):
+            schedule.every().sunday.at(start_time).do(joinClass, timetable_row[currentPeriod])
+
+
+startBrowser()
+while True:
+    schedule.run_pending()
+    time.sleep(1)
