@@ -103,17 +103,41 @@ def joinClass(className):
 
     time.sleep(5)
     try:
-		joinbtn = driver.find_element_by_class_name("ts-calling-join-button")
-		joinbtn.click()
-	except:
-		k = 1
-		while(k<=15):
-			print("Join button not found, trying again")
-			time.sleep(60)
-			driver.refresh()
-			joinclass(class_name,start_time,end_time)
-			k+=1
-		print("Seems like there is no class today.")
+        joinbtn = browser.find_element_by_class_name("ts-calling-join-button")
+        joinbtn.click()
+    except:
+        k = 1
+        while(k<=15):
+        	print("Join button not found, trying again")
+        	time.sleep(60)
+        	browser.refresh()
+        	joinclass(class_name,start_time,end_time)
+        	k+=1
+        print("Seems like there is no class today.")
+
+    webcam = browser.find_element_by_xpath('//*[@id="page-content-wrapper"]/div[1]/div/calling-pre-join-screen/div/div/div[2]/div[1]/div[2]/div/div/section/div[2]/toggle-button[1]/div/button/span[1]')
+    if(webcam.get_attribute('title')=='Turn camera off'):
+    	webcam.click()
+    	print("TURNED OFF THE CAMERA")
+    time.sleep(1)
+    microphone = browser.find_element_by_xpath('//*[@id="preJoinAudioButton"]/div/button/span[1]')
+    if(microphone.get_attribute('title')=='Mute microphone'):
+    	microphone.click()
+    	print("TURNED OFF THE MICROPHONE")
+    time.sleep(1)
+    joinnowbtn = browser.find_element_by_xpath('//*[@id="page-content-wrapper"]/div[1]/div/calling-pre-join-screen/div/div/div[2]/div[1]/div[2]/div/div/section/div[1]/div/div/button')
+    joinnowbtn.click()
+    print("POGPOGPOGPOG SUCCESFULLY JOINT CLASS")
+
+    time.sleep(40 * 60)
+    leave_class()
+
+def leave_class():
+	# focus
+	browser.send_keys(Keys.CONTROL)
+	browser.find_element_by_xpath('//*[@id="hangup-button"]').click()
+	time.sleep(5)
+
 
 def startBrowser():
     global browser
@@ -162,7 +186,7 @@ for i in range(len(timetable_row)):
         elif(todaysDay == "thursday"):
             schedule.every().thursday.at(start_time).do(joinClass, timetable_row[currentPeriod])
         elif(todaysDay == "friday"):
-            schedule.every().sunday.at(start_time).do(joinClass, timetable_row[currentPeriod])
+            schedule.every().friday.at(start_time).do(joinClass, timetable_row[currentPeriod])
 
 
 startBrowser()
